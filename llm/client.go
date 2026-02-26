@@ -32,7 +32,7 @@ type LLMResponse struct {
 }
 
 func LLMCall(content string, body LLMCallBody, config LLMConfig) (string, error) {
-	client := &http.Client{Timeout: 2 * time.Minute}
+	client := &http.Client{Timeout: 5 * time.Minute}
 	body.Msgs = append(body.Msgs, map[string]string{
 		"role":    "user",
 		"content": content,

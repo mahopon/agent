@@ -3,7 +3,7 @@ package agent
 import (
 	"agent/llm"
 	"agent/tool"
-	"log"
+	"log/slog"
 	"slices"
 )
 
@@ -12,22 +12,28 @@ type AgentAction interface {
 }
 
 type Agent struct {
-	Name      string
-	Tools     []tool.Tool
-	SysPrompt string
+	Name            string
+	Tools           []tool.Tool
+	SysPrompt       string
+	InternalHistory []map[string]string
 }
 
-func (a *Agent) Call(userQuery string, loop *Session, config *llm.LLMConfig) (string, error) {
-	if len(loop.History) == 0 {
-		loop.History = slices.Insert(loop.History, 0, map[string]string{
+func (a *Agent) Call(userQuery string, requiredContext []map[string]string, config *llm.LLMConfig) (string, error) {
+	if len(a.InternalHistory) == 0 {
+		var content string
+		if requiredContext != nil {
+			content = a.SysPrompt + requiredContext[0]["content"]
+		} else {
+			content = a.SysPrompt
+		}
+		a.InternalHistory = slices.Insert(a.InternalHistory, 0, map[string]string{
 			"role":    "system",
-			"content": a.SysPrompt,
+			"content": content,
 		})
 	}
-	log.Printf("%v", loop.History)
 	params := llm.LLMCallBody{
 		Model: config.LLM_MODEL,
-		Msgs:  loop.History,
+		Msgs:  a.InternalHistory,
 		Reasoning: map[string]bool{
 			"enabled": false,
 		},
@@ -36,7 +42,6 @@ func (a *Agent) Call(userQuery string, loop *Session, config *llm.LLMConfig) (st
 	if err != nil {
 		return "", err
 	}
-	loop.Summary = reply
-	log.Printf("Summary: %v", loop.Summary)
+	slog.Debug("Agent Call", "details", a)
 	return reply, nil
 }
