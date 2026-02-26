@@ -16,6 +16,7 @@ type Agent struct {
 	Tools           []tool.Tool
 	SysPrompt       string
 	InternalHistory []map[string]string
+	Session         *Session
 }
 
 func (a *Agent) Call(userQuery string, requiredContext []map[string]string, config *llm.LLMConfig) (string, error) {

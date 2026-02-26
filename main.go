@@ -9,9 +9,9 @@ import (
 
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})))
-	titleAgent := agent.NewTitleAgent()
-	planningAgent := agent.NewPlanningAgent()
 	session := agent.NewSession()
+	titleAgent := agent.NewTitleAgent(session)
+	planningAgent := agent.NewPlanningAgent(session)
 	llmConfig := llm.NewLLMConfig()
 	reply, err := titleAgent.Call("Build flappy bird using HTML, CSS, and Vanilla JS", nil, llmConfig)
 	if err != nil {
