@@ -1,20 +1,13 @@
 package llm
 
-import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"io"
-	"log"
-	"log/slog"
-	"net/http"
-	"time"
-)
+type LLMRequest struct {
+	Model string `json:"model"`
+	LLMBody
+}
 
-type LLMCallBody struct {
-	Model     string              `json:"model"`
+type LLMBody struct {
 	Msgs      []map[string]string `json:"messages"`
-	Reasoning map[string]bool     `json:"reasoning"`
+	Reasoning bool                `json:"reasoning,omitempty"`
 }
 
 type LLMChoice struct {
@@ -31,35 +24,24 @@ type LLMResponse struct {
 	Model   string      `json:"model"`
 }
 
-func LLMCall(content string, body LLMCallBody, config LLMConfig) (string, error) {
-	client := &http.Client{Timeout: 5 * time.Minute}
-	body.Msgs = append(body.Msgs, map[string]string{
-		"role":    "user",
-		"content": content,
-	})
-	log.Printf("Messages: %v", body.Msgs)
-	jsonData, err := json.Marshal(body)
-	if err != nil {
-		return "", err
+type LLMCallable interface {
+	Call(body *LLMBody) (string, error)
+}
+
+type LLM struct {
+	config *LLMConfig
+}
+
+func NewLLMBody(messages []map[string]string, enableReasoning bool) *LLMBody {
+	return &LLMBody{
+		Msgs:      messages,
+		Reasoning: enableReasoning,
 	}
-	bodyReader := bytes.NewReader(jsonData)
-	req, err := http.NewRequest(http.MethodPost, config.LLM_URL, bodyReader)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+config.LLM_KEY)
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
+}
+
+func NewLLMRequest(model string, body *LLMBody) *LLMRequest {
+	return &LLMRequest{
+		Model:   model,
+		LLMBody: *body,
 	}
-	defer resp.Body.Close()
-	respBody, err := io.ReadAll(resp.Body)
-	var llmResp LLMResponse
-	err = json.Unmarshal(respBody, &llmResp)
-	if err != nil {
-		return "", err
-	}
-	slog.Debug("LLM Response", "status", resp.Status, "response", string(respBody))
-	if len(llmResp.Choices) > 0 {
-		return llmResp.Choices[0].Message.Content, nil
-	}
-	return "", fmt.Errorf("no choices in LLM response")
 }

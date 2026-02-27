@@ -4,17 +4,14 @@ package agent
 
 type Session struct {
 	History      []map[string]string
-	Summary      string
+	Title        string
 	Instructions string
 }
 
 func NewSession() *Session {
 	return &Session{
 		History:      make([]map[string]string, 0),
-		Summary:      "",
+		Title:        "",
 		Instructions: "",
 	}
-}
-
-func Start() {
 }
