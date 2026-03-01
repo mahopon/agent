@@ -25,7 +25,7 @@ func main() {
 	tools := make([]tool.ToolExecutor, 0)
 	tools = append(tools, tool.NewFileSystemExecutor())
 	orchestratorAgent := agent.NewOrchestratorAgent(sysPrompt, tools, llm)
-	session := agent.NewSession()
+	session := agent.NewSession(nil)
 
 	for {
 		fmt.Print("Enter a query: ")
