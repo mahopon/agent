@@ -1,18 +1,22 @@
 package tool
 
 import (
-	"errors"
 	"os"
 )
 
 type FileSystemExecutor struct{}
 
+func NewFileSystemExecutor() *FileSystemExecutor {
+	return &FileSystemExecutor{}
+}
+
 func (f *FileSystemExecutor) Execute(name string, args map[string]any) (string, error) {
-	path := args["path"].(string)
 	switch name {
 	case "read_file":
+		path := args["path"].(string)
 		return readFile(path)
 	case "write_file":
+		path := args["path"].(string)
 		content := args["content"].(string)
 		return "", writeFile(content, path)
 	case "get_cwd":
@@ -91,36 +95,5 @@ func readFile(path string) (string, error) {
 }
 
 func writeFile(content, path string) error {
-	fileExists, err := isFileExists(path)
-	var file *os.File
-	if !fileExists {
-		if !errors.Is(err, os.ErrNotExist) {
-			return err
-		}
-		file, err = os.Create(path)
-		if err != nil {
-			return err
-		}
-	} else {
-		file, err = os.OpenFile(path, os.O_RDWR, 0644)
-		if err != nil {
-			return err
-		}
-	}
-	if _, err := file.Write([]byte(content)); err != nil {
-		return err
-	}
-	return nil
-}
-
-func isFileExists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return false, nil
-		} else {
-			return false, err
-		}
-	}
-	return true, nil
+	return os.WriteFile(path, []byte(content), 0644)
 }
