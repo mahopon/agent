@@ -2,10 +2,11 @@ package agent
 
 import (
 	"agent/llm"
-	templates "agent/prompt/templates"
+	"agent/prompt/templates"
 	"agent/tool"
 	"encoding/json"
 	"fmt"
+	"os"
 )
 
 type OrchestratorAgent struct {
@@ -14,7 +15,10 @@ type OrchestratorAgent struct {
 
 func (a *OrchestratorAgent) Run(userQuery string, session *Session) (*llm.ParsedResponse, error) {
 	if len(session.History) == 0 {
-		prompt, err := a.SystemPrompt.Create(nil)
+		cwd, _ := os.Getwd()
+		prompt, err := a.SystemPrompt.Create(map[string]any{
+			"cwd": cwd,
+		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create system prompt: %w", err)
 		}
@@ -31,6 +35,7 @@ func (a *OrchestratorAgent) Run(userQuery string, session *Session) (*llm.Parsed
 			"content": userQuery,
 		})
 	}
+
 	tools := tool.ToOpenAIScheme(a.Tools)
 	body := llm.NewLLMBody(session.History, false, tools)
 

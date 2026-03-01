@@ -54,6 +54,10 @@ func (p *ParsedResponse) HasToolCalls() bool {
 	return len(p.ToolCalls) > 0
 }
 
+func (p *ParsedResponse) NumToolCalls() int {
+	return len(p.ToolCalls)
+}
+
 type LLM struct {
 	config *LLMConfig
 }
