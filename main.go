@@ -1,7 +1,7 @@
 package main
 
 import (
-	"agent/agent"
+	"agent/agent/v1"
 	"agent/config"
 	"agent/llm"
 	"log/slog"
