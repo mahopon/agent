@@ -24,7 +24,7 @@ func NewLocalLLM(config *LLMConfig) *LocalLLM {
 
 func (llm *LLM) Call(body *LLMBody) (string, error) {
 	client := &http.Client{Timeout: 5 * time.Minute}
-	llmReq := NewLLMRequest("z.ai/glm-4.7-flash", body)
+	llmReq := NewLLMRequest(llm.config.LLM_MODEL, body)
 	jsonData, err := json.Marshal(llmReq)
 	if err != nil {
 		return "", err

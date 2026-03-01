@@ -7,7 +7,7 @@ type LLMRequest struct {
 
 type LLMBody struct {
 	Msgs      []map[string]string `json:"messages"`
-	Reasoning bool                `json:"reasoning,omitempty"`
+	Reasoning map[string]bool     `json:"reasoning,omitempty"`
 }
 
 type LLMChoice struct {
@@ -34,8 +34,10 @@ type LLM struct {
 
 func NewLLMBody(messages []map[string]string, enableReasoning bool) *LLMBody {
 	return &LLMBody{
-		Msgs:      messages,
-		Reasoning: enableReasoning,
+		Msgs: messages,
+		Reasoning: map[string]bool{
+			"enabled": enableReasoning,
+		},
 	}
 }
 
