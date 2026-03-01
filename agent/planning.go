@@ -38,9 +38,6 @@ func (a *PlanningAgent) Run(userQuery string, session *Session) error {
 	if err != nil {
 		return err
 	}
-	session.History = append(session.History, map[string]string{
-		"role":    "assistant",
-		"content": a.Name + ":\n" + reply,
-	})
+	session.Instructions = reply
 	return nil
 }
