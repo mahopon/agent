@@ -7,7 +7,7 @@ import (
 )
 
 type AgentRunnable interface {
-	Run(userQuery string, session *Session) (*llm.ParsedResponse, error)
+	Run(userQuery string, reasoning bool, session *Session) (*llm.ParsedResponse, error)
 }
 
 type Agent struct {

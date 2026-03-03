@@ -52,13 +52,22 @@ type LLMChoice struct {
 type LLMResponse struct {
 	Choices []LLMChoice `json:"choices"`
 	Model   string      `json:"model"`
+	Usage   struct {
+		PromptTokens     int `json:"prompt_tokens"`
+		CompletionTokens int `json:"completion_tokens"`
+		TotalTokens      int `json:"total_tokens"`
+	} `json:"usage"`
 }
 
 type LLMLogResponse struct {
-	Model        string              `json:"model"`
-	Content      string              `json:"content"`
-	FinishReason string              `json:"finish_reason"`
-	ToolCalls    []map[string]string `json:"tool_calls"`
+	Model            string              `json:"model"`
+	Content          string              `json:"content"`
+	FinishReason     string              `json:"finish_reason"`
+	ToolCalls        []map[string]string `json:"tool_calls"`
+	PromptTokens     int                 `json:"prompt_tokens"`
+	CompletionTokens int                 `json:"completion_tokens"`
+	TotalTokens      int                 `json:"total_tokens"`
+	InferenceTimeMs  int64               `json:"inference_time_ms"`
 }
 
 func ParseToLogResponse(respBody []byte) LLMLogResponse {
@@ -81,10 +90,13 @@ func ParseToLogResponse(respBody []byte) LLMLogResponse {
 	}
 
 	return LLMLogResponse{
-		Model:        llmResp.Model,
-		Content:      msg.Content,
-		FinishReason: llmResp.Choices[0].FinishReason,
-		ToolCalls:    toolCallInfo,
+		Model:            llmResp.Model,
+		Content:          msg.Content,
+		FinishReason:     llmResp.Choices[0].FinishReason,
+		ToolCalls:        toolCallInfo,
+		PromptTokens:     llmResp.Usage.PromptTokens,
+		CompletionTokens: llmResp.Usage.CompletionTokens,
+		TotalTokens:      llmResp.Usage.TotalTokens,
 	}
 }
 
@@ -104,10 +116,14 @@ type ToolCall struct {
 }
 
 type ParsedResponse struct {
-	Content      string
-	Reasoning    string
-	FinishReason string
-	ToolCalls    []tool.ToolCallInfo
+	Content          string
+	Reasoning        string
+	FinishReason     string
+	ToolCalls        []tool.ToolCallInfo
+	PromptTokens     int
+	CompletionTokens int
+	TotalTokens      int
+	InferenceTimeMs  int64
 }
 
 func (p *ParsedResponse) HasToolCalls() bool {

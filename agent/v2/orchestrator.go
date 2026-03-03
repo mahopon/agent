@@ -13,7 +13,7 @@ type OrchestratorAgent struct {
 	Agent
 }
 
-func (a *OrchestratorAgent) Run(userQuery string, session *Session) (*llm.ParsedResponse, error) {
+func (a *OrchestratorAgent) Run(userQuery string, reasoning bool, session *Session) (*llm.ParsedResponse, error) {
 	if len(session.History) == 0 {
 		cwd, _ := os.Getwd()
 		prompt, err := a.SystemPrompt.Create(map[string]any{
@@ -37,7 +37,7 @@ func (a *OrchestratorAgent) Run(userQuery string, session *Session) (*llm.Parsed
 	}
 
 	tools := tool.ToOpenAIScheme(a.Tools)
-	body := llm.NewLLMBody(session.History, false, tools)
+	body := llm.NewLLMBody(session.History, reasoning, tools)
 
 	response, err := a.LLM.CallWithRetry(body)
 	if err != nil {

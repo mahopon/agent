@@ -43,7 +43,7 @@ func main() {
 		if userQuery == "STOP" {
 			break
 		}
-		response, err := orchestratorAgent.Run(userQuery, session)
+		response, err := orchestratorAgent.Run(userQuery, true, session)
 		if err != nil {
 			panic(err)
 		}
@@ -57,7 +57,7 @@ func main() {
 
 		for response.HasToolCalls() {
 			iterations++
-			response, err = orchestratorAgent.Run("", session)
+			response, err = orchestratorAgent.Run("", true, session)
 			if response.Content != "" {
 				fmt.Printf("Assistant: %s\n", response.Content)
 			}

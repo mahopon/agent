@@ -37,14 +37,14 @@ func NewDecoder(r io.Reader) *SSEDecoder {
 	}
 }
 
-func parseReply(respBody []byte) (content, reasoning, finishReason string, toolCalls []tool.ToolCallInfo, err error) {
+func parseReply(respBody []byte) (content, reasoning, finishReason string, toolCalls []tool.ToolCallInfo, promptTokens, completionTokens, totalTokens int, err error) {
 	var llmResp LLMResponse
 	if err := json.Unmarshal(respBody, &llmResp); err != nil {
-		return "", "", "", nil, err
+		return "", "", "", nil, 0, 0, 0, err
 	}
 
 	if len(llmResp.Choices) == 0 {
-		return "", "", "", nil, fmt.Errorf("no choices in LLM response")
+		return "", "", "", nil, 0, 0, 0, fmt.Errorf("no choices in LLM response")
 	}
 
 	msg := llmResp.Choices[0].Message
@@ -60,7 +60,7 @@ func parseReply(respBody []byte) (content, reasoning, finishReason string, toolC
 		})
 	}
 
-	return content, reasoning, finishReason, toolCalls, nil
+	return content, reasoning, finishReason, toolCalls, llmResp.Usage.PromptTokens, llmResp.Usage.CompletionTokens, llmResp.Usage.TotalTokens, nil
 }
 
 func (d *SSEDecoder) Decode() (string, error) {
@@ -109,6 +109,8 @@ func (llm *LLM) Call(body *LLMBody) (*ParsedResponse, error) {
 	req, err := http.NewRequest(http.MethodPost, llm.config.LLM_URL, bodyReader)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+llm.config.LLM_KEY)
+
+	startTime := time.Now()
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -127,9 +129,12 @@ func (llm *LLM) Call(body *LLMBody) (*ParsedResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	slog.Debug("LLM Response", "status", resp.Status, "details", ParseToLogResponse(respBody))
+	inferenceTimeMs := time.Since(startTime).Milliseconds()
+	logResp := ParseToLogResponse(respBody)
+	logResp.InferenceTimeMs = inferenceTimeMs
+	slog.Debug("LLM Response", "status", resp.Status, "details", logResp)
 
-	content, reasoning, finishReason, toolCalls, err := parseReply(respBody)
+	content, reasoning, finishReason, toolCalls, promptTokens, completionTokens, totalTokens, err := parseReply(respBody)
 	if err != nil {
 		return nil, err
 	}
@@ -141,10 +146,14 @@ func (llm *LLM) Call(body *LLMBody) (*ParsedResponse, error) {
 	}
 
 	return &ParsedResponse{
-		Content:      content,
-		Reasoning:    reasoning,
-		FinishReason: finishReason,
-		ToolCalls:    toolCalls,
+		Content:          content,
+		Reasoning:        reasoning,
+		FinishReason:     finishReason,
+		ToolCalls:        toolCalls,
+		PromptTokens:     promptTokens,
+		CompletionTokens: completionTokens,
+		TotalTokens:      totalTokens,
+		InferenceTimeMs:  inferenceTimeMs,
 	}, nil
 }
 
