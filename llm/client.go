@@ -124,6 +124,7 @@ type ParsedResponse struct {
 	CompletionTokens int
 	TotalTokens      int
 	InferenceTimeMs  int64
+	RequestBody      string
 }
 
 func (p *ParsedResponse) HasToolCalls() bool {

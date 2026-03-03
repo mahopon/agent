@@ -13,3 +13,4 @@ func NewLLMConfig(url, key, model string) *LLMConfig {
 		LLM_MODEL: model,
 	}
 }
+

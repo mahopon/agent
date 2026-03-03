@@ -1,7 +1,9 @@
 package tool
 
 import (
+	"errors"
 	"fmt"
+	"github.com/sergi/go-diff/diffmatchpatch"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -34,6 +36,10 @@ func (f *FileSystemExecutor) Execute(name string, args map[string]any) (string, 
 	case "walk_dir":
 		path := args["root"].(string)
 		return walkDir(path)
+	case "modify_file":
+		path := args["path"].(string)
+		modified := args["modified"].(string)
+		return "", modifyFile(path, modified)
 	}
 
 	return "", nil
@@ -154,6 +160,29 @@ func (f *FileSystemExecutor) Schema() []Tool {
 				Strict: true,
 			},
 		},
+		{
+			Type: "function",
+			Function: Function{
+				Name:        "modify_file",
+				Description: "Modifies a file safely using patch",
+				Parameters: ToolParameters{
+					Type: "object",
+					Properties: map[string]ToolProperty{
+						"path": {
+							Type:        "string",
+							Description: "Path of the file to be modfied. Working directory is to be included before calling",
+						},
+						"modified": {
+							Type:        "string",
+							Description: "Modified generated code based on the original file",
+						},
+					},
+					Required:             []string{"root"},
+					AdditionalProperties: false,
+				},
+				Strict: true,
+			},
+		},
 	}
 }
 
@@ -224,4 +253,34 @@ func walkDir(root string) (string, error) {
 	}
 
 	return builder.String(), nil
+}
+
+func modifyFile(path, modified string) error {
+	original, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	dmp := diffmatchpatch.New()
+	patches := dmp.PatchMake(string(original), modified)
+	result, applied := dmp.PatchApply(patches, string(original))
+	for _, ok := range applied {
+		if !ok {
+			return errors.New("patch failed to apply cleanly")
+		}
+	}
+	absPath, _ := filepath.Abs(path)
+	dir := filepath.Dir(absPath)
+	tmp, err := os.CreateTemp(dir, ".tmp-*")
+	_, err = tmp.WriteString(result)
+	tmp.Sync()
+	tmp.Close()
+	err = os.Rename(tmp.Name(), path)
+	if err != nil {
+		return err
+	}
+	dirFd, _ := os.Open(dir)
+	dirFd.Sync()
+	dirFd.Close()
+	return nil
 }

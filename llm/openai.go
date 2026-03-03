@@ -99,12 +99,12 @@ func (d *SSEDecoder) Decode() (string, error) {
 
 func (llm *LLM) Call(body *LLMBody) (*ParsedResponse, error) {
 	client := &http.Client{Timeout: 5 * time.Minute}
-	slog.Debug("LLM Request body", "details", body.ToLogBody(llm.config.LLM_MODEL))
 	llmReq := NewLLMRequest(llm.config.LLM_MODEL, body)
 	jsonData, err := json.Marshal(llmReq)
 	if err != nil {
 		return nil, err
 	}
+	slog.Debug("LLM Request body", "details", body.ToLogBody(llm.config.LLM_MODEL))
 	bodyReader := bytes.NewReader(jsonData)
 	req, err := http.NewRequest(http.MethodPost, llm.config.LLM_URL, bodyReader)
 	req.Header.Set("Content-Type", "application/json")
@@ -154,6 +154,7 @@ func (llm *LLM) Call(body *LLMBody) (*ParsedResponse, error) {
 		CompletionTokens: completionTokens,
 		TotalTokens:      totalTokens,
 		InferenceTimeMs:  inferenceTimeMs,
+		RequestBody:      string(jsonData),
 	}, nil
 }
 
