@@ -1,6 +1,7 @@
 package tool
 
 import (
+	"fmt"
 	"os"
 )
 
@@ -20,7 +21,10 @@ func (f *FileSystemExecutor) Execute(name string, args map[string]any) (string, 
 		content := args["content"].(string)
 		return "", writeFile(content, path)
 	case "get_cwd":
-		return os.Getwd()
+		return getWd()
+	case "create_folder":
+		path := args["path"].(string)
+		return "", createFolder(path)
 	}
 	return "", nil
 }
@@ -83,6 +87,25 @@ func (f *FileSystemExecutor) Schema() []Tool {
 				Strict: true,
 			},
 		},
+		{
+			Type: "function",
+			Function: Function{
+				Name:        "create_folder",
+				Description: "Creates folder in specified path",
+				Parameters: ToolParameters{
+					Type: "object",
+					Properties: map[string]ToolProperty{
+						"path": {
+							Type:        "string",
+							Description: "Path to create folder in",
+						},
+					},
+					Required:             []string{"path"},
+					AdditionalProperties: false,
+				},
+				Strict: true,
+			},
+		},
 	}
 }
 
@@ -96,4 +119,17 @@ func readFile(path string) (string, error) {
 
 func writeFile(content, path string) error {
 	return os.WriteFile(path, []byte(content), 0644)
+}
+
+func getWd() (string, error) {
+	return os.Getwd()
+}
+
+func createFolder(path string) error {
+	pwd, err := getWd()
+	if err != nil {
+		return err
+	}
+	concPath := fmt.Sprintf("%s/%s", pwd, path)
+	return os.Mkdir(concPath, 0644)
 }
