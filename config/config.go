@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"strconv"
 )
@@ -15,11 +16,14 @@ type Config struct {
 func NewConfig() *Config {
 	var LLM_URL string
 	var API_KEY string
-	if os.Getenv("LLM_MODE") == "LOCAL" {
+	LLM_MODE := os.Getenv("LLM_MODE")
+	if LLM_MODE == "LOCAL" {
 		LLM_URL = os.Getenv("LLM_LOCAL_URL")
-	} else {
+	} else if LLM_MODE == "API" {
 		LLM_URL = os.Getenv("LLM_URL")
 		API_KEY = os.Getenv("API_KEY")
+	} else {
+		panic(errors.New("LLM_MODE not specified"))
 	}
 	debug, err := strconv.ParseBool(os.Getenv("DEBUG"))
 	if err != nil {
