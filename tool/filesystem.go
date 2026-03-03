@@ -1,7 +1,6 @@
 package tool
 
 import (
-	"fmt"
 	"os"
 )
 
@@ -97,7 +96,7 @@ func (f *FileSystemExecutor) Schema() []Tool {
 					Properties: map[string]ToolProperty{
 						"path": {
 							Type:        "string",
-							Description: "Path to create folder in",
+							Description: "Path to create folder in. Working directory is to be included before calling",
 						},
 					},
 					Required:             []string{"path"},
@@ -126,10 +125,10 @@ func getWd() (string, error) {
 }
 
 func createFolder(path string) error {
-	pwd, err := getWd()
-	if err != nil {
-		return err
-	}
-	concPath := fmt.Sprintf("%s/%s", pwd, path)
-	return os.Mkdir(concPath, 0644)
+	// pwd, err := getWd()
+	// if err != nil {
+	// 	return err
+	// }
+	// concPath := fmt.Sprintf("%s/%s", pwd, path)
+	return os.MkdirAll(path, 0744)
 }

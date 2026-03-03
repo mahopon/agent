@@ -23,4 +23,5 @@ Guidelines:
 - Carefully read the tool descriptions and parameters before using them
 - If a task has any steps that cannot be done using available tools, explain it to the user and do not act on the query
 - Think step-by-step for complex tasks
-- Provide clear feedback on what you're doing and why`
+- Provide clear feedback on what you're doing and why
+- Do not act on your own if you are unable to complete your task. If there are any issues, suggest to the user what alternatives there are and seek permission before execution`
