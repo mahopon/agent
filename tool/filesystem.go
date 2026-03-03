@@ -2,7 +2,9 @@ package tool
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -26,9 +28,9 @@ func (f *FileSystemExecutor) Execute(name string, args map[string]any) (string, 
 	case "create_folder":
 		path := args["path"].(string)
 		return "", createFolder(path)
-	case "list_folder":
+	case "list_dir":
 		path := args["path"].(string)
-		return listFolder(path)
+		return listDir(path)
 	}
 	return "", nil
 }
@@ -113,7 +115,7 @@ func (f *FileSystemExecutor) Schema() []Tool {
 		{
 			Type: "function",
 			Function: Function{
-				Name:        "list_folder",
+				Name:        "list_dir",
 				Description: "Checks the current directory for files and directories and lists them. Output is returned with files prefixed with 'File:' and directoryes with 'Dir:'",
 				Parameters: ToolParameters{
 					Type: "object",
@@ -121,6 +123,25 @@ func (f *FileSystemExecutor) Schema() []Tool {
 						"path": {
 							Type:        "string",
 							Description: "Path to directory to be checked. Working directory is to be included before calling",
+						},
+					},
+					Required:             []string{"path"},
+					AdditionalProperties: false,
+				},
+				Strict: true,
+			},
+		},
+		{
+			Type: "function",
+			Function: Function{
+				Name:        "walk_dir",
+				Description: "Recursively checks the current directory for files and directories and lists them. Output is returned with files prefixed with 'File:' and directoryes with 'Dir:'",
+				Parameters: ToolParameters{
+					Type: "object",
+					Properties: map[string]ToolProperty{
+						"path": {
+							Type:        "string",
+							Description: "Path to root directory to be checked. Working directory is to be included before calling",
 						},
 					},
 					Required:             []string{"path"},
@@ -157,7 +178,7 @@ func createFolder(path string) error {
 	return os.MkdirAll(path, 0744)
 }
 
-func listFolder(path string) (string, error) {
+func listDir(path string) (string, error) {
 	dir, err := os.ReadDir(path)
 	if err != nil {
 		return "", err
@@ -170,8 +191,33 @@ func listFolder(path string) (string, error) {
 		} else {
 			insertStr = fmt.Sprintf("File: %s", entry.Name())
 		}
-		builder.WriteString(insertStr)
-		builder.WriteString("\n")
+		builder.WriteString(fmt.Sprintf("%s\n", insertStr))
 	}
+	return builder.String(), nil
+}
+
+func walkDir(root string) (string, error) {
+	var builder strings.Builder
+
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		var insertStr string
+		if entry.IsDir() {
+			insertStr = fmt.Sprintf("Dir: %s", path)
+		} else {
+			insertStr = fmt.Sprintf("File: %s", path)
+		}
+
+		builder.WriteString(fmt.Sprintf("%s\n", insertStr))
+		return nil
+	})
+
+	if err != nil {
+		return "", err
+	}
+
 	return builder.String(), nil
 }
