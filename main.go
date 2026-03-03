@@ -18,7 +18,13 @@ import (
 func main() {
 	godotenv.Load()
 	config := config.NewConfig()
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
+	var debugLevel slog.Level
+	if config.DEBUG == true {
+		debugLevel = slog.LevelDebug
+	} else {
+		debugLevel = slog.LevelInfo
+	}
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: debugLevel})))
 	llmConfig := llm.NewLLMConfig(config.LLM_URL, config.API_KEY, config.LLM_MODEL)
 	llm := llm.NewLocalLLM(llmConfig)
 	sysPrompt := templates.NewSystemPrompt()
