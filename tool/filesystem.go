@@ -1,7 +1,9 @@
 package tool
 
 import (
+	"fmt"
 	"os"
+	"strings"
 )
 
 type FileSystemExecutor struct{}
@@ -24,6 +26,9 @@ func (f *FileSystemExecutor) Execute(name string, args map[string]any) (string, 
 	case "create_folder":
 		path := args["path"].(string)
 		return "", createFolder(path)
+	case "list_folder":
+		path := args["path"].(string)
+		return listFolder(path)
 	}
 	return "", nil
 }
@@ -105,6 +110,25 @@ func (f *FileSystemExecutor) Schema() []Tool {
 				Strict: true,
 			},
 		},
+		{
+			Type: "function",
+			Function: Function{
+				Name:        "list_folder",
+				Description: "Checks the current directory for files and directories and lists them. Output is returned with files prefixed with 'File:' and directoryes with 'Dir:'",
+				Parameters: ToolParameters{
+					Type: "object",
+					Properties: map[string]ToolProperty{
+						"path": {
+							Type:        "string",
+							Description: "Path to directory to be checked. Working directory is to be included before calling",
+						},
+					},
+					Required:             []string{"path"},
+					AdditionalProperties: false,
+				},
+				Strict: true,
+			},
+		},
 	}
 }
 
@@ -131,4 +155,23 @@ func createFolder(path string) error {
 	// }
 	// concPath := fmt.Sprintf("%s/%s", pwd, path)
 	return os.MkdirAll(path, 0744)
+}
+
+func listFolder(path string) (string, error) {
+	dir, err := os.ReadDir(path)
+	if err != nil {
+		return "", err
+	}
+	var builder strings.Builder
+	for _, entry := range dir {
+		var insertStr string
+		if entry.IsDir() {
+			insertStr = fmt.Sprintf("Dir: %s", entry.Name())
+		} else {
+			insertStr = fmt.Sprintf("File: %s", entry.Name())
+		}
+		builder.WriteString(insertStr)
+		builder.WriteString("\n")
+	}
+	return builder.String(), nil
 }
