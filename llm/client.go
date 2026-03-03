@@ -1,6 +1,9 @@
 package llm
 
-import "agent/tool"
+import (
+	"agent/tool"
+	"encoding/json"
+)
 
 type LLMRequest struct {
 	Model  string `json:"model"`
@@ -12,6 +15,27 @@ type LLMBody struct {
 	Msgs      []map[string]any `json:"messages"`
 	Reasoning map[string]bool  `json:"reasoning,omitempty"`
 	Tools     []tool.Tool      `json:"tools,omitempty"`
+}
+
+type LLMLogBody struct {
+	Model            string `json:"model"`
+	MessageCount     int    `json:"message_count"`
+	HasTools         bool   `json:"has_tools"`
+	ReasoningEnabled bool   `json:"reasoning_enabled"`
+}
+
+func (b *LLMBody) ToLogBody(model string) LLMLogBody {
+	hasTools := len(b.Tools) > 0
+	reasoningEnabled := false
+	if b.Reasoning != nil {
+		reasoningEnabled = b.Reasoning["enabled"]
+	}
+	return LLMLogBody{
+		Model:            model,
+		MessageCount:     len(b.Msgs),
+		HasTools:         hasTools,
+		ReasoningEnabled: reasoningEnabled,
+	}
 }
 
 type LLMChoice struct {
@@ -30,8 +54,43 @@ type LLMResponse struct {
 	Model   string      `json:"model"`
 }
 
+type LLMLogResponse struct {
+	Model        string              `json:"model"`
+	Content      string              `json:"content"`
+	FinishReason string              `json:"finish_reason"`
+	ToolCalls    []map[string]string `json:"tool_calls"`
+}
+
+func ParseToLogResponse(respBody []byte) LLMLogResponse {
+	var llmResp LLMResponse
+	if err := json.Unmarshal(respBody, &llmResp); err != nil {
+		return LLMLogResponse{Model: "error", Content: err.Error()}
+	}
+
+	if len(llmResp.Choices) == 0 {
+		return LLMLogResponse{Model: llmResp.Model, Content: ""}
+	}
+
+	msg := llmResp.Choices[0].Message
+	toolCallInfo := make([]map[string]string, 0, len(msg.ToolCalls))
+	for _, tc := range msg.ToolCalls {
+		toolCallInfo = append(toolCallInfo, map[string]string{
+			"name":      tc.Function.Name,
+			"arguments": tc.Function.Arguments,
+		})
+	}
+
+	return LLMLogResponse{
+		Model:        llmResp.Model,
+		Content:      msg.Content,
+		FinishReason: llmResp.Choices[0].FinishReason,
+		ToolCalls:    toolCallInfo,
+	}
+}
+
 type LLMCallable interface {
 	Call(body *LLMBody) (*ParsedResponse, error)
+	CallWithRetry(body *LLMBody) (*ParsedResponse, error)
 	Stream(body *LLMBody, onChunk func(string)) error
 }
 
@@ -45,9 +104,10 @@ type ToolCall struct {
 }
 
 type ParsedResponse struct {
-	Content   string
-	Reasoning string
-	ToolCalls []tool.ToolCallInfo
+	Content      string
+	Reasoning    string
+	FinishReason string
+	ToolCalls    []tool.ToolCallInfo
 }
 
 func (p *ParsedResponse) HasToolCalls() bool {

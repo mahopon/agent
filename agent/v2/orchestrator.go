@@ -39,7 +39,7 @@ func (a *OrchestratorAgent) Run(userQuery string, session *Session) (*llm.Parsed
 	tools := tool.ToOpenAIScheme(a.Tools)
 	body := llm.NewLLMBody(session.History, false, tools)
 
-	response, err := a.LLM.Call(body)
+	response, err := a.LLM.CallWithRetry(body)
 	if err != nil {
 		return nil, err
 	}

@@ -52,7 +52,11 @@ func main() {
 			fmt.Printf("Assistant: %s\n", response.Content)
 		}
 
+		const maxIterations = 20
+		iterations := 0
+
 		for response.HasToolCalls() {
+			iterations++
 			response, err = orchestratorAgent.Run("", session)
 			if response.Content != "" {
 				fmt.Printf("Assistant: %s\n", response.Content)
@@ -60,6 +64,12 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
+		}
+
+		if iterations >= maxIterations {
+			fmt.Println("Assistant: Reached maximum iterations limit. Task may not be complete.")
+		} else if response.Content == "" {
+			fmt.Println("Assistant: (No response content generated)")
 		}
 	}
 

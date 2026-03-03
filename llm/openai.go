@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -36,19 +37,20 @@ func NewDecoder(r io.Reader) *SSEDecoder {
 	}
 }
 
-func parseReply(respBody []byte) (content, reasoning string, toolCalls []tool.ToolCallInfo, err error) {
+func parseReply(respBody []byte) (content, reasoning, finishReason string, toolCalls []tool.ToolCallInfo, err error) {
 	var llmResp LLMResponse
 	if err := json.Unmarshal(respBody, &llmResp); err != nil {
-		return "", "", nil, err
+		return "", "", "", nil, err
 	}
 
 	if len(llmResp.Choices) == 0 {
-		return "", "", nil, fmt.Errorf("no choices in LLM response")
+		return "", "", "", nil, fmt.Errorf("no choices in LLM response")
 	}
 
 	msg := llmResp.Choices[0].Message
 	content = msg.Content
 	reasoning = msg.ReasoningContent
+	finishReason = llmResp.Choices[0].FinishReason
 
 	for _, tc := range msg.ToolCalls {
 		toolCalls = append(toolCalls, tool.ToolCallInfo{
@@ -58,7 +60,7 @@ func parseReply(respBody []byte) (content, reasoning string, toolCalls []tool.To
 		})
 	}
 
-	return content, reasoning, toolCalls, nil
+	return content, reasoning, finishReason, toolCalls, nil
 }
 
 func (d *SSEDecoder) Decode() (string, error) {
@@ -97,7 +99,7 @@ func (d *SSEDecoder) Decode() (string, error) {
 
 func (llm *LLM) Call(body *LLMBody) (*ParsedResponse, error) {
 	client := &http.Client{Timeout: 5 * time.Minute}
-	slog.Debug("LLM Request body", "details", body)
+	slog.Debug("LLM Request body", "details", body.ToLogBody(llm.config.LLM_MODEL))
 	llmReq := NewLLMRequest(llm.config.LLM_MODEL, body)
 	jsonData, err := json.Marshal(llmReq)
 	if err != nil {
@@ -112,22 +114,76 @@ func (llm *LLM) Call(body *LLMBody) (*ParsedResponse, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		respBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("HTTP error %d: failed to read response body", resp.StatusCode)
+		}
+		return nil, fmt.Errorf("HTTP error %d: %s", resp.StatusCode, string(respBody))
+	}
+
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	slog.Debug("LLM Response", "status", resp.Status, "response", string(respBody))
+	slog.Debug("LLM Response", "status", resp.Status, "details", ParseToLogResponse(respBody))
 
-	content, reasoning, toolCalls, err := parseReply(respBody)
+	content, reasoning, finishReason, toolCalls, err := parseReply(respBody)
 	if err != nil {
 		return nil, err
 	}
 
+	if content == "" && len(toolCalls) == 0 {
+		slog.Warn("LLM returned empty response with no tool calls", "message_count", len(body.Msgs))
+	} else if content == "" && len(toolCalls) > 0 {
+		slog.Debug("LLM returned empty content with tool calls", "tool_calls", len(toolCalls), "message_count", len(body.Msgs))
+	}
+
 	return &ParsedResponse{
-		Content:   content,
-		Reasoning: reasoning,
-		ToolCalls: toolCalls,
+		Content:      content,
+		Reasoning:    reasoning,
+		FinishReason: finishReason,
+		ToolCalls:    toolCalls,
 	}, nil
+}
+
+func RetryWithResult[T any](
+	maxRetries int,
+	baseDelay time.Duration,
+	fn func() (T, error),
+) (T, error) {
+
+	var zero T
+
+	for attempt := range maxRetries {
+		result, err := fn()
+		if err == nil {
+			return result, nil
+		}
+
+		delay := time.Duration(1<<attempt) * baseDelay
+		time.Sleep(delay)
+	}
+
+	return zero, fmt.Errorf("max retries reached")
+}
+
+func (llm *LLM) CallWithRetry(body *LLMBody) (*ParsedResponse, error) {
+	resp, err := llm.Call(body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.FinishReason == "" {
+		log.Printf("")
+		slog.Warn("LLM returned empty finish reason")
+		resp, err = RetryWithResult(3, 2*time.Second, func() (*ParsedResponse, error) { return llm.Call(body) })
+		if err != nil {
+			return nil, err
+		}
+	}
+	return resp, nil
 }
 
 func (llm *LLM) Stream(body *LLMBody, onChunk func(string)) error {
