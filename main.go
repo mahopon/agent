@@ -52,7 +52,7 @@ func main() {
 			fmt.Printf("Assistant: %s\n", response.Content)
 		}
 
-		const maxIterations = 20
+		const maxIterations = 50
 		iterations := 0
 
 		for response.HasToolCalls() {
