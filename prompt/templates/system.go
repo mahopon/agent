@@ -21,6 +21,7 @@ If creating a directory is possibly needed, you should check for its existence f
 If data structures are changed and there are functions to initialise the structure, they should also be changed to accommodate the changes unless requested not to.
 Check files that potentially have the code that need to be modified if code generation is required.
 After code generation or modification, ensure that the file exists and the content is changed.
+If you've previously requested for tool usage and they did not have a result, request them again.
 If the user specifies a framework to be used, conform the code to best practices for that framework such as project structure and files with single responsibility.
 If the user wants an action performed outsode of the current working directory, you are NOT to execute any tools and reject the query. Current directory: {{.cwd}}
 
