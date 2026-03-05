@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 )
 
 type OrchestratorAgent struct {
@@ -43,11 +44,6 @@ func (a *OrchestratorAgent) Run(userQuery string, reasoning bool, session *Sessi
 	if err != nil {
 		return nil, err
 	}
-
-	session.History = append(session.History, map[string]any{
-		"role":    "assistant",
-		"content": response.Content,
-	})
 
 	if response.HasToolCalls() {
 		for _, tc := range response.ToolCalls {
@@ -100,7 +96,13 @@ func (a *OrchestratorAgent) Run(userQuery string, reasoning bool, session *Sessi
 				"tool_call_id": tc.ID,
 				"content":      result,
 			})
+			time.Sleep(50 * time.Millisecond)
 		}
+	} else {
+		session.History = append(session.History, map[string]any{
+			"role":    "assistant",
+			"content": response.Content,
+		})
 	}
 
 	return response, nil
