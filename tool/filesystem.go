@@ -3,43 +3,174 @@ package tool
 import (
 	"errors"
 	"fmt"
-	"github.com/sergi/go-diff/diffmatchpatch"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
 type FileSystemExecutor struct{}
+
+type ReadFileInput struct {
+	Path string `json:"path" yaml:"path"`
+}
+
+type WriteFileInput struct {
+	Path    string `json:"path" yaml:"path"`
+	Content string `json:"content" yaml:"content"`
+}
+
+type CreateFolderInput struct {
+	Path string `json:"path" yaml:"path"`
+}
+
+type ListDirInput struct {
+	Path string `json:"path" yaml:"path"`
+}
+
+type WalkDirInput struct {
+	Root string `json:"root" yaml:"root"`
+}
+
+type ModifyFileInput struct {
+	Path     string `json:"path" yaml:"path"`
+	Modified string `json:"modified" yaml:"modified"`
+}
+
+var errMissingInput = errors.New("missing required input")
 
 func NewFileSystemExecutor() *FileSystemExecutor {
 	return &FileSystemExecutor{}
 }
 
+func (r ReadFileInput) Validate() error {
+	if strings.TrimSpace(r.Path) == "" {
+		return fmt.Errorf("%w: path", errMissingInput)
+	}
+	return nil
+}
+
+func (w WriteFileInput) Validate() error {
+	if strings.TrimSpace(w.Path) == "" {
+		return fmt.Errorf("%w: path", errMissingInput)
+	}
+	if strings.TrimSpace(w.Content) == "" {
+		return fmt.Errorf("%w: content", errMissingInput)
+	}
+	return nil
+}
+
+func (c CreateFolderInput) Validate() error {
+	if strings.TrimSpace(c.Path) == "" {
+		return fmt.Errorf("%w: path", errMissingInput)
+	}
+	return nil
+}
+
+func (l ListDirInput) Validate() error {
+	if strings.TrimSpace(l.Path) == "" {
+		return fmt.Errorf("%w: path", errMissingInput)
+	}
+	return nil
+}
+
+func (w WalkDirInput) Validate() error {
+	if strings.TrimSpace(w.Root) == "" {
+		return fmt.Errorf("%w: root", errMissingInput)
+	}
+	return nil
+}
+
+func (m ModifyFileInput) Validate() error {
+	if strings.TrimSpace(m.Path) == "" {
+		return fmt.Errorf("%w: path", errMissingInput)
+	}
+	if strings.TrimSpace(m.Modified) == "" {
+		return fmt.Errorf("%w: modified", errMissingInput)
+	}
+	return nil
+}
+
 func (f *FileSystemExecutor) Execute(name string, args map[string]any) (string, error) {
 	switch name {
 	case "read_file":
-		path := args["path"].(string)
-		return readFile(path)
+		path, ok := args["path"].(string)
+		if !ok {
+			return "", fmt.Errorf("%w: path", errMissingInput)
+		}
+		input := ReadFileInput{Path: path}
+		if err := input.Validate(); err != nil {
+			return "", err
+		}
+		return readFile(input.Path)
+
 	case "write_file":
-		path := args["path"].(string)
-		content := args["content"].(string)
-		return "", writeFile(content, path)
+		path, ok := args["path"].(string)
+		if !ok {
+			return "", fmt.Errorf("%w: path", errMissingInput)
+		}
+		content, ok := args["content"].(string)
+		if !ok {
+			return "", fmt.Errorf("%w: content", errMissingInput)
+		}
+		input := WriteFileInput{Path: path, Content: content}
+		if err := input.Validate(); err != nil {
+			return "", err
+		}
+		return "", writeFile(input.Content, input.Path)
+
 	case "get_cwd":
 		return getWd()
+
 	case "create_folder":
-		path := args["path"].(string)
-		return "", createFolder(path)
+		path, ok := args["path"].(string)
+		if !ok {
+			return "", fmt.Errorf("%w: path", errMissingInput)
+		}
+		input := CreateFolderInput{Path: path}
+		if err := input.Validate(); err != nil {
+			return "", err
+		}
+		return "", createFolder(input.Path)
+
 	case "list_dir":
-		path := args["path"].(string)
-		return listDir(path)
+		path, ok := args["path"].(string)
+		if !ok {
+			return "", fmt.Errorf("%w: path", errMissingInput)
+		}
+		input := ListDirInput{Path: path}
+		if err := input.Validate(); err != nil {
+			return "", err
+		}
+		return listDir(input.Path)
+
 	case "walk_dir":
-		path := args["root"].(string)
-		return walkDir(path)
+		root, ok := args["root"].(string)
+		if !ok {
+			return "", fmt.Errorf("%w: root", errMissingInput)
+		}
+		input := WalkDirInput{Root: root}
+		if err := input.Validate(); err != nil {
+			return "", err
+		}
+		return walkDir(input.Root)
+
 	case "modify_file":
-		path := args["path"].(string)
-		modified := args["modified"].(string)
-		return "", modifyFile(path, modified)
+		path, ok := args["path"].(string)
+		if !ok {
+			return "", fmt.Errorf("%w: path", errMissingInput)
+		}
+		modified, ok := args["modified"].(string)
+		if !ok {
+			return "", fmt.Errorf("%w: modified", errMissingInput)
+		}
+		input := ModifyFileInput{Path: path, Modified: modified}
+		if err := input.Validate(); err != nil {
+			return "", err
+		}
+		return "", modifyFile(input.Path, input.Modified)
 	}
 
 	return "", nil
@@ -177,7 +308,7 @@ func (f *FileSystemExecutor) Schema() []Tool {
 							Description: "Modified generated code based on the original file",
 						},
 					},
-					Required:             []string{"root"},
+					Required:             []string{"path", "modified"},
 					AdditionalProperties: false,
 				},
 				Strict: true,
@@ -203,11 +334,6 @@ func getWd() (string, error) {
 }
 
 func createFolder(path string) error {
-	// pwd, err := getWd()
-	// if err != nil {
-	// 	return err
-	// }
-	// concPath := fmt.Sprintf("%s/%s", pwd, path)
 	return os.MkdirAll(path, 0744)
 }
 
