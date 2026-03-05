@@ -58,11 +58,19 @@ func main() {
 		for response.HasToolCalls() {
 			iterations++
 			response, err = orchestratorAgent.Run("", true, session)
+			if err != nil {
+				slog.Error("Tool call iteration failed", "error", err, "iteration", iterations)
+				fmt.Println("Assistant: Encountered an error during tool execution.")
+				break
+			}
+			if response == nil {
+				slog.Error("Run returned nil response with no error")
+				slog.Error("Response error:", "response", response, "history", session.History)
+				fmt.Println("Assistant: Received empty response.")
+				continue
+			}
 			if response.Content != "" {
 				fmt.Printf("Assistant: %s\n", response.Content)
-			}
-			if err != nil {
-				panic(err)
 			}
 		}
 
