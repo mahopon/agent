@@ -388,25 +388,54 @@ func modifyFile(path, modified string) error {
 	}
 
 	dmp := diffmatchpatch.New()
-	patches := dmp.PatchMake(string(original), modified)
+	patches, err := dmp.PatchFromText(modified)
+	if err != nil {
+		return fmt.Errorf("invalid patch format: %w", err)
+	}
+
+	if len(patches) == 0 {
+		return errors.New("empty patch")
+	}
+
 	result, applied := dmp.PatchApply(patches, string(original))
-	for _, ok := range applied {
+	for i, ok := range applied {
 		if !ok {
-			return errors.New("patch failed to apply cleanly")
+			return fmt.Errorf("patch failed to apply at index %d", i)
 		}
 	}
-	absPath, _ := filepath.Abs(path)
-	dir := filepath.Dir(absPath)
-	tmp, err := os.CreateTemp(dir, ".tmp-*")
-	_, err = tmp.WriteString(result)
-	tmp.Sync()
-	tmp.Close()
-	err = os.Rename(tmp.Name(), path)
+
+	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return err
 	}
-	dirFd, _ := os.Open(dir)
-	dirFd.Sync()
-	dirFd.Close()
+	dir := filepath.Dir(absPath)
+
+	tmp, err := os.CreateTemp(dir, ".tmp-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name())
+
+	if _, err = tmp.WriteString(result); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err = tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err = tmp.Close(); err != nil {
+		return err
+	}
+
+	if err = os.Rename(tmp.Name(), path); err != nil {
+		return err
+	}
+
+	if dirFd, err := os.Open(dir); err == nil {
+		dirFd.Sync()
+		dirFd.Close()
+	}
+
 	return nil
 }
