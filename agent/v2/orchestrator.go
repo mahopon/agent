@@ -6,6 +6,7 @@ import (
 	"agent/tool"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 )
@@ -21,6 +22,7 @@ func (a *OrchestratorAgent) Run(userQuery string, reasoning bool, session *Sessi
 			"cwd": cwd,
 		})
 		if err != nil {
+			slog.Error("failed to create system prompt", "agent", a.Name, "error", err)
 			return nil, fmt.Errorf("failed to create system prompt: %w", err)
 		}
 
@@ -28,6 +30,7 @@ func (a *OrchestratorAgent) Run(userQuery string, reasoning bool, session *Sessi
 			"role":    "system",
 			"content": prompt,
 		})
+		slog.Info("system prompt added to session", "agent", a.Name, "cwd", cwd)
 	}
 
 	if userQuery != "" {
@@ -35,17 +38,22 @@ func (a *OrchestratorAgent) Run(userQuery string, reasoning bool, session *Sessi
 			"role":    "user",
 			"content": userQuery,
 		})
+		slog.Debug("user query added to history", "agent", a.Name, "query", userQuery)
 	}
 
 	tools := tool.ToOpenAIScheme(a.Tools)
 	body := llm.NewLLMBody(session.History, reasoning, tools)
+	slog.Debug("preparing LLM request", "agent", a.Name, "tools_count", len(tools))
 
 	response, err := a.LLM.CallWithRetry(body)
 	if err != nil {
+		slog.Error("LLM call failed", "agent", a.Name, "error", err)
 		return nil, err
 	}
+	slog.Debug("LLM response received", "agent", a.Name, "has_tool_calls", response.HasToolCalls())
 
 	if response.HasToolCalls() {
+		slog.Info("processing tool calls", "agent", a.Name, "tool_calls", len(response.ToolCalls))
 		for _, tc := range response.ToolCalls {
 			session.History = append(session.History, map[string]any{
 				"role": "assistant",
@@ -60,9 +68,11 @@ func (a *OrchestratorAgent) Run(userQuery string, reasoning bool, session *Sessi
 					},
 				},
 			})
+			slog.Debug("tool call added to history", "agent", a.Name, "tool", tc.Name, "call_id", tc.ID)
 
 			executor, err := tool.FindExecutorForTool(a.Tools, tc.Name)
 			if err != nil {
+				slog.Error("executor not found for tool", "agent", a.Name, "tool", tc.Name, "error", err)
 				session.History = append(session.History, map[string]any{
 					"role":         "tool",
 					"tool_call_id": tc.ID,
@@ -73,6 +83,7 @@ func (a *OrchestratorAgent) Run(userQuery string, reasoning bool, session *Sessi
 
 			var args map[string]any
 			if err := json.Unmarshal([]byte(tc.Arguments), &args); err != nil {
+				slog.Error("failed to parse tool arguments", "agent", a.Name, "tool", tc.Name, "error", err)
 				session.History = append(session.History, map[string]any{
 					"role":         "tool",
 					"tool_call_id": tc.ID,
@@ -83,6 +94,7 @@ func (a *OrchestratorAgent) Run(userQuery string, reasoning bool, session *Sessi
 
 			result, err := executor(tc.Name, args)
 			if err != nil {
+				slog.Error("tool execution failed", "agent", a.Name, "tool", tc.Name, "error", err)
 				session.History = append(session.History, map[string]any{
 					"role":         "tool",
 					"tool_call_id": tc.ID,
@@ -91,6 +103,7 @@ func (a *OrchestratorAgent) Run(userQuery string, reasoning bool, session *Sessi
 				continue
 			}
 
+			slog.Info("tool execution successful", "agent", a.Name, "tool", tc.Name, "result", result)
 			session.History = append(session.History, map[string]any{
 				"role":         "tool",
 				"tool_call_id": tc.ID,
@@ -99,12 +112,14 @@ func (a *OrchestratorAgent) Run(userQuery string, reasoning bool, session *Sessi
 			time.Sleep(50 * time.Millisecond)
 		}
 	} else {
+		slog.Debug("final response received without tool calls", "agent", a.Name)
 		session.History = append(session.History, map[string]any{
 			"role":    "assistant",
 			"content": response.Content,
 		})
 	}
 
+	slog.Debug("run completed", "agent", a.Name)
 	return response, nil
 }
 
