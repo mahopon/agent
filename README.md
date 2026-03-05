@@ -1,14 +1,3 @@
-# Agent
-
-## What I've done
-
-1. Implemented API calls following OpenAI's specification
-2. Implemented tool usage
-
-## Current capabilities
-
-1. File system modifications (create, write, list directory, walk directory)
-
 ## AI GENERATED SUMMARY
 
 This Go-based AI agent framework implements a conversational assistant capable of interacting with both LLMs and file system operations. The system uses an OpenAI-compatible API interface and supports reasoning-mode responses for enhanced problem-solving capabilities.
@@ -36,15 +25,17 @@ This Go-based AI agent framework implements a conversational assistant capable o
    - Strict JSON schema validation for all tool inputs
 
 4. **Prompt Management (prompt/templates/)**
-   - SystemPrompt templates generate conversation context
+   - SystemPrompt templates generate conversation context with working directory
    - Error handling templates for user-facing messages
 
 5. **Configuration (config/)**
    - Environment-based configuration supporting LOCAL and API LLM modes
+   - Environment variables: LLM_URL, API_KEY, LLM_MODEL, DEBUG
    - Debug logging enabled via DEBUG environment variable
 
 ### Key Features
 
+- **Interactive CLI**: Main entry point in main.go provides a REPL interface
 - **Multi-tool execution**: Agents can chain multiple tool calls and respond to intermediate results
 - **Context-aware conversations**: Maintains full message history for contextual responses
 - **Safe file modifications**: Uses temporary files and atomic renames for write operations
@@ -59,5 +50,6 @@ This Go-based AI agent framework implements a conversational assistant capable o
 - Tool schemas follow strict JSON Schema specifications
 - 5-minute HTTP timeouts for long-running LLM requests
 - Output formatting with prefix markers ('File:', 'Dir:') for directory listings
+- Tool call iteration limit of 20 to prevent infinite loops
 
 The system is designed for extensible architecture where new tools can be registered without modifying core orchestration logic.
