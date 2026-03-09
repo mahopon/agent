@@ -53,9 +53,18 @@ func parseReply(respBody []byte) (content, reasoning, finishReason string, toolC
 	finishReason = llmResp.Choices[0].FinishReason
 
 	for _, tc := range msg.ToolCalls {
+		argsStr := ""
+		switch a := tc.Function.Arguments.(type) {
+		case string:
+			argsStr = a
+		case map[string]any:
+			if jsonBytes, err := json.Marshal(a); err == nil {
+				argsStr = string(jsonBytes)
+			}
+		}
 		toolCalls = append(toolCalls, tool.ToolCallInfo{
 			Name:      tc.Function.Name,
-			Arguments: tc.Function.Arguments,
+			Arguments: argsStr,
 			ID:        tc.ID,
 		})
 	}

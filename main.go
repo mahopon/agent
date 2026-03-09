@@ -17,7 +17,7 @@ import (
 
 func main() {
 	godotenv.Load()
-	config := config.NewConfig()
+	config := config.NewConfig(false)
 	var debugLevel slog.Level
 	if config.DEBUG == true {
 		debugLevel = slog.LevelDebug

@@ -39,6 +39,16 @@ type ModifyFileInput struct {
 	Modified string `json:"modified" yaml:"modified"`
 }
 
+type RenameFileInput struct {
+	OldPath string `json:"old_path" yaml:"old_path"`
+	NewPath string `json:"new_path" yaml:"new_path"`
+}
+
+type RenameFolderInput struct {
+	OldPath string `json:"old_path" yaml:"old_path"`
+	NewPath string `json:"new_path" yaml:"new_path"`
+}
+
 var errMissingInput = errors.New("missing required input")
 
 func NewFileSystemExecutor() *FileSystemExecutor {
@@ -89,6 +99,26 @@ func (m ModifyFileInput) Validate() error {
 	}
 	if strings.TrimSpace(m.Modified) == "" {
 		return fmt.Errorf("%w: modified", errMissingInput)
+	}
+	return nil
+}
+
+func (r RenameFileInput) Validate() error {
+	if strings.TrimSpace(r.OldPath) == "" {
+		return fmt.Errorf("%w: old_path", errMissingInput)
+	}
+	if strings.TrimSpace(r.NewPath) == "" {
+		return fmt.Errorf("%w: new_path", errMissingInput)
+	}
+	return nil
+}
+
+func (r RenameFolderInput) Validate() error {
+	if strings.TrimSpace(r.OldPath) == "" {
+		return fmt.Errorf("%w: old_path", errMissingInput)
+	}
+	if strings.TrimSpace(r.NewPath) == "" {
+		return fmt.Errorf("%w: new_path", errMissingInput)
 	}
 	return nil
 }
@@ -171,6 +201,36 @@ func (f *FileSystemExecutor) Execute(name string, args map[string]any) (string, 
 			return "", err
 		}
 		return "", modifyFile(input.Path, input.Modified)
+
+	case "rename_file":
+		oldPath, ok := args["old_path"].(string)
+		if !ok {
+			return "", fmt.Errorf("%w: old_path", errMissingInput)
+		}
+		newPath, ok := args["new_path"].(string)
+		if !ok {
+			return "", fmt.Errorf("%w: new_path", errMissingInput)
+		}
+		input := RenameFileInput{OldPath: oldPath, NewPath: newPath}
+		if err := input.Validate(); err != nil {
+			return "", err
+		}
+		return "", renameFile(input.OldPath, input.NewPath)
+
+	case "rename_folder":
+		oldPath, ok := args["old_path"].(string)
+		if !ok {
+			return "", fmt.Errorf("%w: old_path", errMissingInput)
+		}
+		newPath, ok := args["new_path"].(string)
+		if !ok {
+			return "", fmt.Errorf("%w: new_path", errMissingInput)
+		}
+		input := RenameFolderInput{OldPath: oldPath, NewPath: newPath}
+		if err := input.Validate(); err != nil {
+			return "", err
+		}
+		return "", renameFolder(input.OldPath, input.NewPath)
 	}
 
 	return "", nil
@@ -314,6 +374,52 @@ func (f *FileSystemExecutor) Schema() []Tool {
 				Strict: true,
 			},
 		},
+		{
+			Type: "function",
+			Function: Function{
+				Name:        "rename_file",
+				Description: "Renames a file from old_path to new_path",
+				Parameters: ToolParameters{
+					Type: "object",
+					Properties: map[string]ToolProperty{
+						"old_path": {
+							Type:        "string",
+							Description: "The current path of the file to rename",
+						},
+						"new_path": {
+							Type:        "string",
+							Description: "The new path for the file",
+						},
+					},
+					Required:             []string{"old_path", "new_path"},
+					AdditionalProperties: false,
+				},
+				Strict: true,
+			},
+		},
+		{
+			Type: "function",
+			Function: Function{
+				Name:        "rename_folder",
+				Description: "Renames a folder from old_path to new_path",
+				Parameters: ToolParameters{
+					Type: "object",
+					Properties: map[string]ToolProperty{
+						"old_path": {
+							Type:        "string",
+							Description: "The current path of the folder to rename",
+						},
+						"new_path": {
+							Type:        "string",
+							Description: "The new path for the folder",
+						},
+					},
+					Required:             []string{"old_path", "new_path"},
+					AdditionalProperties: false,
+				},
+				Strict: true,
+			},
+		},
 	}
 }
 
@@ -438,4 +544,12 @@ func modifyFile(path, modified string) error {
 	}
 
 	return nil
+}
+
+func renameFile(oldPath, newPath string) error {
+	return os.Rename(oldPath, newPath)
+}
+
+func renameFolder(oldPath, newPath string) error {
+	return os.Rename(oldPath, newPath)
 }

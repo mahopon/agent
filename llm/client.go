@@ -83,9 +83,18 @@ func ParseToLogResponse(respBody []byte) LLMLogResponse {
 	msg := llmResp.Choices[0].Message
 	toolCallInfo := make([]map[string]string, 0, len(msg.ToolCalls))
 	for _, tc := range msg.ToolCalls {
+		argsStr := ""
+		switch a := tc.Function.Arguments.(type) {
+		case string:
+			argsStr = a
+		case map[string]any:
+			if jsonBytes, err := json.Marshal(a); err == nil {
+				argsStr = string(jsonBytes)
+			}
+		}
 		toolCallInfo = append(toolCallInfo, map[string]string{
 			"name":      tc.Function.Name,
-			"arguments": tc.Function.Arguments,
+			"arguments": argsStr,
 		})
 	}
 
@@ -110,8 +119,8 @@ type ToolCall struct {
 	ID       string `json:"id"`
 	Type     string `json:"type"`
 	Function struct {
-		Name      string `json:"name"`
-		Arguments string `json:"arguments"`
+		Name      string      `json:"name"`
+		Arguments interface{} `json:"arguments"`
 	} `json:"function"`
 }
 
