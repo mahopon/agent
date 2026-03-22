@@ -52,7 +52,7 @@ func (a *OrchestratorAgent) Run(userQuery string, reasoning bool, session *Sessi
 	}
 	slog.Debug("LLM response received", "agent", a.Name, "has_tool_calls", response.HasToolCalls())
 
-	if response.HasToolCalls() {
+	for response.HasToolCalls() {
 		slog.Info("processing tool calls", "agent", a.Name, "tool_calls", len(response.ToolCalls))
 		for _, tc := range response.ToolCalls {
 			session.History = append(session.History, map[string]any{
@@ -111,8 +111,18 @@ func (a *OrchestratorAgent) Run(userQuery string, reasoning bool, session *Sessi
 			})
 			time.Sleep(50 * time.Millisecond)
 		}
-	} else {
-		slog.Debug("final response received without tool calls", "agent", a.Name)
+
+		slog.Info("tool calls processed, making follow-up LLM call", "agent", a.Name)
+		body = llm.NewLLMBody(session.History, reasoning, tools)
+		response, err = a.LLM.CallWithRetry(body)
+		if err != nil {
+			slog.Error("follow-up LLM call failed", "agent", a.Name, "error", err)
+			return nil, err
+		}
+		slog.Debug("follow-up response received", "agent", a.Name, "has_tool_calls", response.HasToolCalls())
+	}
+
+	if !response.HasToolCalls() {
 		session.History = append(session.History, map[string]any{
 			"role":    "assistant",
 			"content": response.Content,
