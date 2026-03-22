@@ -6,6 +6,7 @@ import (
 	"agent/llm"
 	"agent/tool"
 	"bufio"
+	"flag"
 	"fmt"
 	"log/slog"
 	"os"
@@ -17,14 +18,29 @@ import (
 
 func main() {
 	godotenv.Load()
-	config := config.NewConfig()
-	var debugLevel slog.Level
-	if config.DEBUG == true {
-		debugLevel = slog.LevelDebug
-	} else {
-		debugLevel = slog.LevelInfo
+
+	debugFlag := flag.Bool("debug", false, "Enable debugging")
+	shortDebugFlag := flag.Bool("d", false, "Enables debugging")
+
+	flag.Parse()
+
+	var debugging bool
+
+	visitedFlags := make(map[string]bool)
+	flag.Visit(func(f *flag.Flag) {
+		visitedFlags[f.Name] = true
+	})
+
+	if visitedFlags["debug"] {
+		debugging = *debugFlag
+	} else if visitedFlags["d"] {
+		debugging = *shortDebugFlag
 	}
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: debugLevel})))
+
+	config := config.NewConfig()
+	if debugging == true {
+		slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	}
 	llmConfig := llm.NewLLMConfig(config.LLM_URL, config.API_KEY, config.LLM_MODEL)
 	llm := llm.NewLocalLLM(llmConfig)
 	sysPrompt := templates.NewSystemPrompt()
