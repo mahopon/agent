@@ -1,14 +1,14 @@
 package tool
 
 import (
+	fsgr "agent/guardrails/filesystem"
 	"errors"
 	"fmt"
+	"github.com/sergi/go-diff/diffmatchpatch"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
 type FileSystemExecutor struct{}
@@ -338,17 +338,26 @@ func createFolder(path string) error {
 }
 
 func listDir(path string) (string, error) {
+	err := fsgr.CheckPathSafe(path)
+	if err != nil {
+		return "", err
+	}
 	dir, err := os.ReadDir(path)
 	if err != nil {
 		return "", err
 	}
 	var builder strings.Builder
 	for _, entry := range dir {
+		entryName := entry.Name()
+		err := fsgr.CheckPathSafe(entryName)
+		if err != nil {
+			continue
+		}
 		var insertStr string
 		if entry.IsDir() {
-			insertStr = fmt.Sprintf("Dir: %s", entry.Name())
+			insertStr = fmt.Sprintf("Dir: %s", entryName)
 		} else {
-			insertStr = fmt.Sprintf("File: %s", entry.Name())
+			insertStr = fmt.Sprintf("File: %s", entryName)
 		}
 		builder.WriteString(fmt.Sprintf("%s\n", insertStr))
 	}
@@ -356,13 +365,21 @@ func listDir(path string) (string, error) {
 }
 
 func walkDir(root string) (string, error) {
+	err := fsgr.CheckPathSafe(root)
+	if err != nil {
+		return "", err
+	}
 	var builder strings.Builder
 
-	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+	err = filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
+		err = fsgr.CheckPathSafe(path)
+		if err != nil {
+			return err
+		}
 		var insertStr string
 		if entry.IsDir() {
 			insertStr = fmt.Sprintf("Dir: %s", path)
