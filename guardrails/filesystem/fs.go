@@ -15,7 +15,7 @@ func (e errorConst) Error() string {
 }
 
 const (
-	ErrForbiddenAccess errorConst = "forbidden access"
+	ErrForbiddenAccess errorConst = "not allowed to access this folder/file"
 )
 
 func CheckPathSafe(path string) error {

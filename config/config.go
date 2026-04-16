@@ -20,7 +20,7 @@ func NewConfig() *Config {
 	} else if LLM_MODE == "LOCAL" {
 		LLM_URL = os.Getenv("LLM_LOCAL_URL")
 	} else {
-		LLM_URL = "http://localhost:8080/v1/chat/completions"
+		LLM_URL = "http://192.168.1.251:8080/v1/chat/completions"
 	}
 	return &Config{
 		API_KEY:   API_KEY,

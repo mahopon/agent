@@ -1,16 +1,27 @@
 package agent
 
-import ()
+import (
+	"agent/memory"
+)
+
+
+type HistoryStore interface {
+	Add(memory.ChatMessage)
+	Remove(memory.ChatMessage)
+	Size() int
+	ToHistory() []map[string]string
+	TokenCount(func(count int))
+}
 
 // A session should contain history, as well as a summary of the initial message
 
 type Session struct {
 	Id      string
-	History []map[string]any
+	History HistoryStore
 }
 
-func NewSession(existingHistory []map[string]any) *Session {
-	var history []map[string]any
+func NewSession(existingHistory HistoryStore) *Session {
+	var history HistoryStore
 	if existingHistory != nil {
 		history = existingHistory
 	}

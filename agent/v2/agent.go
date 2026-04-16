@@ -1,18 +1,20 @@
 package agent
 
 import (
-	"agent/llm"
 	"agent/prompt/templates"
 	"agent/tool"
 )
 
+type LLMCallable interface {
+	Call()
+}
 type AgentRunnable interface {
-	Run(userQuery string, reasoning bool, session *Session) (*llm.ParsedResponse, error)
+	Run(userQuery string, reasoning bool, session *Session) (string, error)
 }
 
 type Agent struct {
 	Name         string
 	Tools        []tool.ToolExecutor
-	LLM          llm.LLMCallable
+	LLM          LLMCallable
 	SystemPrompt *templates.SystemPrompt
 }

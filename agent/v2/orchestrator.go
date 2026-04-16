@@ -4,6 +4,7 @@ import (
 	"agent/llm"
 	"agent/prompt/templates"
 	"agent/tool"
+	"agent/memory"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -15,34 +16,27 @@ type OrchestratorAgent struct {
 	Agent
 }
 
-func (a *OrchestratorAgent) Run(userQuery string, reasoning bool, session *Session) (*llm.ParsedResponse, error) {
-	if len(session.History) == 0 {
+func (a *OrchestratorAgent) Run(userQuery string, reasoning bool, session *Session) (string, error) {
+	if	session.History.Size() == 0 {
 		cwd, _ := os.Getwd()
 		prompt, err := a.SystemPrompt.Create(map[string]any{
 			"cwd": cwd,
 		})
 		if err != nil {
 			slog.Error("failed to create system prompt", "agent", a.Name, "error", err)
-			return nil, fmt.Errorf("failed to create system prompt: %w", err)
+			return "", fmt.Errorf("failed to create system prompt: %w", err)
 		}
-
-		session.History = append(session.History, map[string]any{
-			"role":    "system",
-			"content": prompt,
-		})
+		session.History.Add(memory.NewSystemMessage(prompt))
 		slog.Info("system prompt added to session", "agent", a.Name, "cwd", cwd)
 	}
 
 	if userQuery != "" {
-		session.History = append(session.History, map[string]any{
-			"role":    "user",
-			"content": userQuery,
-		})
+		session.History.Add(memory.NewUserMessage(userQuery))
 		slog.Debug("user query added to history", "agent", a.Name, "query", userQuery)
 	}
 
 	tools := tool.ToOpenAIScheme(a.Tools)
-	body := llm.NewLLMBody(session.History, reasoning, tools)
+	body := a.LLM.Call(session.History.ToHistory(), tools)
 	slog.Debug("preparing LLM request", "agent", a.Name, "tools_count", len(tools))
 
 	response, err := a.LLM.CallWithRetry(body)
