@@ -1,6 +1,7 @@
 package llm
 
 import (
+	"agent/memory"
 	"agent/tool"
 	"bytes"
 	"encoding/json"
@@ -8,19 +9,11 @@ import (
 	"net/http"
 )
 
-type ToolCall struct {
-	ID       string `json:"id"`
-	Type     string `json:"type"`
-	Function struct {
-		Name      string `json:"name"`
-		Arguments string `json:"arguments"`
-	} `json:"function"`
-}
 
 type Message struct {
 	Role      string     `json:"role"`
 	Content   string     `json:"content,omitempty"`
-	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
+	ToolCalls []memory.ToolReplyMessage `json:"tool_calls,omitempty"`
 }
 
 type ChatRequest struct {
@@ -47,7 +40,7 @@ type ChatResponse struct {
 
 type LLMResponse struct {
 	Content string
-	ToolCalls []ToolCall
+	ToolCalls []memory.ToolCallMessage
 	FinishReason string
 	TotalTokens int
 }

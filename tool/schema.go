@@ -29,6 +29,7 @@ type ToolProperty struct {
 	Description string `json:"description"`
 }
 
+
 func getDataPath() string {
 	cwd, err := os.Getwd()
 	if err != nil {
