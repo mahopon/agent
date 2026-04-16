@@ -28,6 +28,7 @@ type ChatRequest struct {
 	Messages []Message `json:"messages"`
     Tools      []tool.Tool `json:"tools,omitempty"`
     ToolChoice string    `json:"tool_choice,omitempty"`
+	Stream bool `json:"stream,omitempty"`
 }
 
 type ChatResponse struct {
@@ -76,6 +77,7 @@ func (llm *OpenAILLM) CallLLM(messages []Message, tools []tool.ToolExecutor) (*L
 		Messages: messages,
 		Tools: tool.ToOpenAIScheme(tools),
 		ToolChoice: "auto",
+		Stream: false,
 	}
 
 	jsonData, err := json.Marshal(reqBody)
